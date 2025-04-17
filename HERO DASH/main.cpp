@@ -1,51 +1,30 @@
-#include <SDL.h>
-#include <iostream>
-#include <cmath>
-#include "Levels.h"  // Include the header so we can use 'levels'
+#define SDL_MAIN_HANDLED
+#include "game.h"
 
-int main(int argc, char* argv[]) {
-    // For demonstration, just pick a level index
-    int currentLevel = 1;
+Game *game = nullptr;
 
-    // Retrieve the maze layout and starting position
-    auto maze = levels[currentLevel].maze;
-    int startX = levels[currentLevel].startX;
-    int startY = levels[currentLevel].startY;
+int main(int argc, const char* argv[]) {
+	const int FPS = 60;
+	const int frameDelay = 1000 / FPS;
+	Uint32 frameStart;
+	Uint32 frameTime;
 
-    // Print some info
-    std::cout << "Loaded level " << (currentLevel + 1)
-        << " with a maze of size " << maze.size()
-        << " rows x " << maze[0].size() << " cols.\n";
-    std::cout << "Starting position: (" << startX << ", " << startY << ")\n";
+	game = new Game();
 
-    // --------------------
-    // 1) Initialize SDL
-    // 2) Create Window/Renderer
-    // 3) Use 'maze' for your game logic
-    // 4) (Optional) Slide or move the player starting at (startX, startY)
-    // 5) Main loop, rendering, etc.
-    // --------------------
+	game->init("HERO DASH", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, false);
 
-    // Minimal example just for demonstration:
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! Error: " << SDL_GetError() << std::endl;
-        return 1;
-    }
+	while (game->running()) {
+		frameStart = SDL_GetTicks();
+		game->handleEvents();
+		game->update();
+		game->render();
+		frameTime = SDL_GetTicks() - frameStart;
+		if (frameDelay > frameTime) {
+			SDL_Delay(frameDelay - frameTime);
+		}		
+	}
 
-    SDL_Window* window = SDL_CreateWindow(
-        "SDL Maze",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        640, 480,
-        SDL_WINDOW_SHOWN
-    );
+	game->cleanup();
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-
-    // ... Your rendering loop, etc. ...
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return 0;
+	return 0;
 }
