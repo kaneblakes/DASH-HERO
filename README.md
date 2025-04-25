@@ -9,6 +9,7 @@
 
 - **Controls:** Use the **arrow keys** to move.
 - Your character **moves continuously** in the chosen direction until colliding with a wall or object!
+- You have a set amount of moves displayed by the mean of the bar of hearts on the top left, when the health bar is depleted, you will be moved to the retry screen.
 - Escape the maze to proceed to the next level.
 
 ## Core Mechanics
