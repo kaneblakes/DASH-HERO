@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <utility> // For std::pair
+#include <SDL_mixer.h>
 
 Game::Game() {}
 Game::~Game() {}
@@ -28,10 +29,21 @@ void Game::init(const char* title, int xpos, int ypos, int width, int height, bo
 		if (window) {
 			std::cout << "Window created!" << std::endl;
 		}
+		if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+			std::cerr << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
+		}
 		renderer = SDL_CreateRenderer(window, -1, 0);
 		if (renderer) {
 			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 			std::cout << "Renderer created!" << std::endl;
+
+			backgroundMusic = Mix_LoadMUS("assets/sounds/bgm.wav");
+			if (!backgroundMusic) {
+				std::cerr << "Failed to load background music: " << Mix_GetError() << std::endl;
+			}
+			else {
+				Mix_PlayMusic(backgroundMusic, -1); // Play music in a loop
+			}
 
 			// Initialize SDL_mixer
 			// Load textures
@@ -48,6 +60,11 @@ void Game::init(const char* title, int xpos, int ypos, int width, int height, bo
 			wall3Texture = IMG_LoadTexture(renderer, "assets/walls/wall3.png");
 			if (!wall3Texture) {
 				std::cout << "Failed to load wall3 texture: " << SDL_GetError() << std::endl;
+			}
+
+			backgroundTexture = IMG_LoadTexture(renderer, "assets/bg/background.jpg");
+			if (!backgroundTexture) {
+				std::cout << "Failed to load background texture: " << SDL_GetError() << std::endl;
 			}
 
 			characterTexture = IMG_LoadTexture(renderer, "assets/player/hero.png");
@@ -104,8 +121,8 @@ void Game::init(const char* title, int xpos, int ypos, int width, int height, bo
 	isEscapeScreenActive = false;
 }
 
-
-
+// Declare the variable once at the beginning of the function or scope
+Mix_Chunk* changesound = nullptr;
 
 void Game::handleEvents() {
 	SDL_PollEvent(&event); // Poll for events
@@ -114,41 +131,62 @@ void Game::handleEvents() {
 		isRunning = false;
 		break;
 	case SDL_KEYDOWN:
+		if (isEscapeScreenActive) {
+			break;
+		}
 		switch (event.key.keysym.sym) {
+		case SDLK_r:
+			characterDirection = DOWN;
+			loadLevel(currentLevel); // Reload the current level
+			break;
 		case SDLK_ESCAPE:
 			isEscapeScreenActive = !isEscapeScreenActive; // Toggle escape screen
 			break;
 		case SDLK_UP:
-			health--;
-			targetY = characterRect.y - tileHeight;
-			targetX = characterRect.x;
-			velocityX = 0;
-			velocityY = -1;
-			characterDirection = UP; // Update direction
-			break;
 		case SDLK_DOWN:
-			health--;
-			targetY = characterRect.y + tileHeight;
-			targetX = characterRect.x;
-			velocityX = 0;
-			velocityY = 1;
-			characterDirection = DOWN; // Update direction
-			break;
 		case SDLK_LEFT:
-			health--;
-			targetX = characterRect.x - tileWidth;
-			targetY = characterRect.y;
-			velocityX = -1;
-			velocityY = 0;
-			characterDirection = LEFT; // Update direction
-			break;
 		case SDLK_RIGHT:
+			// Load the sound only once
+			if (!changesound) {
+				changesound = Mix_LoadWAV("assets/sounds/move.wav");
+				if (!changesound) {
+					std::cerr << "Failed to load move sound: " << Mix_GetError() << std::endl;
+				}
+			}
+			if (changesound) {
+				Mix_PlayChannel(-1, changesound, 0);
+			}
+
+			// Update movement and direction
 			health--;
-			targetX = characterRect.x + tileWidth;
-			targetY = characterRect.y;
-			velocityX = 1;
-			velocityY = 0;
-			characterDirection = RIGHT; // Update direction
+			if (event.key.keysym.sym == SDLK_UP) {
+				targetY = characterRect.y - tileHeight;
+				targetX = characterRect.x;
+				velocityX = 0;
+				velocityY = -1;
+				characterDirection = UP;
+			}
+			else if (event.key.keysym.sym == SDLK_DOWN) {
+				targetY = characterRect.y + tileHeight;
+				targetX = characterRect.x;
+				velocityX = 0;
+				velocityY = 1;
+				characterDirection = DOWN;
+			}
+			else if (event.key.keysym.sym == SDLK_LEFT) {
+				targetX = characterRect.x - tileWidth;
+				targetY = characterRect.y;
+				velocityX = -1;
+				velocityY = 0;
+				characterDirection = LEFT;
+			}
+			else if (event.key.keysym.sym == SDLK_RIGHT) {
+				targetX = characterRect.x + tileWidth;
+				targetY = characterRect.y;
+				velocityX = 1;
+				velocityY = 0;
+				characterDirection = RIGHT;
+			}
 			break;
 		}
 		break;
@@ -160,6 +198,7 @@ void Game::handleEvents() {
 			// Check if the Retry button was clicked
 			if (mouseX >= retryButtonRect.x && mouseX <= retryButtonRect.x + retryButtonRect.w &&
 				mouseY >= retryButtonRect.y && mouseY <= retryButtonRect.y + retryButtonRect.h) {
+				characterDirection = DOWN;
 				loadLevel(currentLevel); // Reload the current level
 				isEscapeScreenActive = false; // Close escape screen
 			}
@@ -177,7 +216,13 @@ void Game::handleEvents() {
 }
 
 
+
 void Game::update() {
+	// Skip updating the game state if the retry screen is active
+	if (isEscapeScreenActive) {
+		return;
+	}
+
 	auto& mazeData = maze.getMazeData(); // Get the maze data
 	int rows = static_cast<int>(mazeData.size()); // Declare and initialize rows
 	int cols = rows > 0 ? static_cast<int>(mazeData[0].size()) : 0; // Declare and initialize cols
@@ -217,8 +262,25 @@ void Game::update() {
 	int successX = successPos.first * tileWidth;
 	int successY = successPos.second * tileHeight;
 	if (characterRect.x == successX && characterRect.y == successY) {
+		// Play success sound
+		Mix_Chunk* successSound = Mix_LoadWAV("assets/sounds/success.wav");
+		if (successSound) {
+			Mix_PlayChannel(-1, successSound, 0);
+		}
+		else {
+			std::cerr << "Failed to load success sound: " << Mix_GetError() << std::endl;
+		}
+
 		std::cout << "Level " << currentLevel + 1 << " complete!" << std::endl;
+
+		// Introduce a 2000ms buffer
+		Uint32 startTime = SDL_GetTicks();
+		while (SDL_GetTicks() - startTime < 1000) {
+			SDL_Delay(1); // Delay for 1ms to avoid busy-waiting
+		}
+
 		currentLevel++;
+		characterDirection = DOWN;
 		if (currentLevel < levelFiles.size()) {
 			loadLevel(currentLevel); // Load the next level
 		}
@@ -239,10 +301,24 @@ void Game::update() {
 			// Transition wall3 to wall2 after moving past it
 			if (mazeData[currentTileY][currentTileX] == 3) {
 				mazeData[currentTileY][currentTileX] = 2; // Change logic to wall2
+				Mix_Chunk* changesound = Mix_LoadWAV("assets/sounds/change.wav");
+				if (changesound) {
+					Mix_PlayChannel(-1, changesound, 0);
+				}
+				else {
+					std::cerr << "Failed to load change sound: " << Mix_GetError() << std::endl;
+				}
 			}
 			else if (mazeData[currentTileY][currentTileX] == 2) {
 				// Transition wall2 to wall1 after moving past it
 				mazeData[currentTileY][currentTileX] = 1; // Change logic to wall1
+				Mix_Chunk* changesound = Mix_LoadWAV("assets/sounds/change.wav");
+				if (changesound) {
+					Mix_PlayChannel(-1, changesound, 0);
+				}
+				else {
+					std::cerr << "Failed to load change sound: " << Mix_GetError() << std::endl;
+				}
 			}
 		}
 		else {
@@ -251,22 +327,23 @@ void Game::update() {
 		}
 	}
 	else {
-		// Ignore out-of-bounds message
 		velocityX = 0;
 		velocityY = 0; // Stop movement out of bounds
 	}
 
-	// Check if health is depleted
-	if (health <= 0) {
-		isEscapeScreenActive = true; // Transition to retry/continue screen
+	if (health <= 0 && !(characterRect.x == successX && characterRect.y == successY)) {
+		isEscapeScreenActive = true;
 	}
 }
 
-
-
-
 void Game::render() {
 	SDL_RenderClear(renderer); // Clear the screen
+
+	// Render the background
+	if (backgroundTexture) {
+		SDL_Rect backgroundRect = { 0, 0, 800, 600 }; // Adjust to match your window size
+		SDL_RenderCopy(renderer, backgroundTexture, nullptr, &backgroundRect);
+	}
 
 	if (isEscapeScreenActive) {
 		// Render the game screen first
@@ -361,6 +438,7 @@ void Game::render() {
 
 
 
+
 void Game::loadLevel(int levelIndex) {
 	if (levelIndex >= 0 && levelIndex < levelFiles.size()) {
 		maze.loadMaze(levelFiles[levelIndex]); // Load the maze file
@@ -408,6 +486,7 @@ void Game::loadLevel(int levelIndex) {
 
 void Game::cleanup() {
 	SDL_DestroyTexture(heartTexture);
+	Mix_FreeMusic(backgroundMusic);
 	SDL_DestroyTexture(retryButtonTexture);
 	SDL_DestroyTexture(continueButtonTexture);
 	SDL_DestroyTexture(characterTexture); // Destroy the hero texture
@@ -418,6 +497,7 @@ void Game::cleanup() {
 	SDL_DestroyTexture(successTexture); // Destroy the success texture
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+	Mix_Quit();
 	SDL_Quit();
 	std::cout << "Game cleaned up!" << std::endl;
 }

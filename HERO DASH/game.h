@@ -1,6 +1,7 @@
 #pragma once
 #include "maze.h"
 #include <SDL.h>
+#include <SDL_mixer.h> 
 #include <iostream>
 #include <vector>
 #include <map>
@@ -21,17 +22,18 @@ public:
 
 private:
     int count;
-    std::map<std::pair<int, int>, Uint32> tileTimers; // Map to store tile timers
-    bool showRetryMenuOnNextInput; // Flag to show retry menu on the next input
-    int targetTileX; // X-coordinate of the target tile
-    int targetTileY; // Y-coordinate of the target tile
-    SDL_Texture* retryButtonTexture;    // Texture for the Retry button
-    SDL_Texture* continueButtonTexture; // Texture for the Continue button
-    SDL_Rect retryButtonRect;           // Rectangle for the Retry button
-    SDL_Rect continueButtonRect;        // Rectangle for the Continue button
-    int health; // Number of remaining moves (hearts)
-    SDL_Texture* heartTexture; // Texture for the heart image
-    SDL_Rect heartRect; // Rectangle for a single heart
+    Mix_Music* backgroundMusic; // Now recognized as a valid type
+    std::map<std::pair<int, int>, Uint32> tileTimers;
+    bool showRetryMenuOnNextInput;
+    int targetTileX;
+    int targetTileY;
+    SDL_Texture* retryButtonTexture;
+    SDL_Texture* continueButtonTexture;
+    SDL_Rect retryButtonRect;
+    SDL_Rect continueButtonRect;
+    int health;
+    SDL_Texture* heartTexture;
+    SDL_Rect heartRect;
     bool isRunning;
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -39,30 +41,31 @@ private:
     int score;
     int lives;
     int level;
-    int rows; // Number of rows in the maze
-    int cols; // Number of columns in the maze
+    int rows;
+    int cols;
     std::vector<std::string> levelData;
     SDL_Texture* characterTexture;
-    SDL_Texture* wallTexture;  // Texture for wall type 1
-    SDL_Texture* wall2Texture; // Texture for wall type 2
-    SDL_Texture* wall3Texture; // Texture for wall type 3
-    bool isEscapeScreenActive; // Tracks if the escape screen is active
+    SDL_Texture* wallTexture;
+    SDL_Texture* wall2Texture;
+    SDL_Texture* wall3Texture;
+    bool isEscapeScreenActive;
     bool isWithinBounds(int y, int x) const {
         return y >= 0 && y < rows && x >= 0 && x < cols;
     }
-    SDL_Texture* backgroundTexture; // Texture for the background
-    SDL_Texture* successTexture; // Texture for the success screen
+    SDL_Texture* backgroundTexture;
+    SDL_Texture* successTexture;
     SDL_Rect characterRect;
-    int velocityX; // Horizontal velocity
-    int velocityY; // Vertical velocity
-    int targetX; // Target X position for grid movement
-    int targetY; // Target Y position for grid movement
-    int tileWidth;  // Width of a single tile
-    int tileHeight; // Height of a single tile
-    int currentLevel; // Tracks the current level
-    std::vector<std::string> levelFiles; // List of maze file paths
+    int velocityX;
+    int velocityY;
+    int targetX;
+    int targetY;
+    int tileWidth;
+    int tileHeight;
+    int currentLevel;
+    std::vector<std::string> levelFiles;
     Maze maze;
 };
+
 enum Direction {
     UP,
     DOWN,
@@ -71,5 +74,3 @@ enum Direction {
 };
 
 extern Direction characterDirection; // Declare the variable as external
-
-
